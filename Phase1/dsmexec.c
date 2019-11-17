@@ -20,7 +20,7 @@ void sigchld_handler(int sig)
 {
    pid_t pid;
 
-    while ((pid = waitpid(-1, NULL, WNOHANG)) != -1)
+    while ((pid = waitpid(-1, NULL, WNOHANG)) != -1) // -1 pour attendre n'importe quel fils
     {
       if (pid > 0)
       {
@@ -37,7 +37,14 @@ int main(int argc, char *argv[])
   } else {       
      pid_t pid;
      int num_procs = 0;
+     int nb_machine;
+     int num_process;
      int i;
+     int sock_listen;
+     char nom_machine;
+     int port_num=0;
+     int** stdout_tube;
+     int** stderr_tube;
      
      /* Mise en place d'un traitant pour recuperer les fils zombies*/      
      /* XXX.sa_handler = sigchld_handler; */
@@ -49,37 +56,47 @@ int main(int argc, char *argv[])
      
      /* lecture du fichier de machines */
      /* 1- on recupere le nombre de processus a lancer */
+     num_process=nb_process(argv[1]);
      /* 2- on recupere les noms des machines : le nom de */
      /* la machine est un des elements d'identification */
-     
+     nom_machine=lecture_machine(argv[1]);
      /* creation de la socket d'ecoute */
+     sock_listen=creer_socket(SOCK_STREAM,&port_num);
      /* + ecoute effective */ 
-     
+     do_listen(sock_listen);
      /* creation des fils */
      for(i = 0; i < num_procs ; i++) {
 	
-	/* creation du tube pour rediriger stdout */
-	
-	/* creation du tube pour rediriger stderr */
-	
-	pid = fork();
-	if(pid == -1) ERROR_EXIT("fork");
-	
-	if (pid == 0) { /* fils */	
-	   
-	   /* redirection stdout */	      
-	   
-	   /* redirection stderr */	      	      
-	   
-	   /* Creation du tableau d'arguments pour le ssh */ 
-	   
-	   /* jump to new prog : */
-	   /* execvp("ssh",newargv); */
+	   /* creation du tube pour rediriger stdout */
+      if(pipe(stdout_tube)==-1)
+         ERROR_EXIT("Erreur création du tube stdout du fils\n");
 
-	} else  if(pid > 0) { /* pere */		      
-	   /* fermeture des extremites des tubes non utiles */
-	   num_procs_creat++;	      
-	}
+	   /* creation du tube pour rediriger stderr */
+      if(pipe(stderr_tube)==-1)
+         ERROR_EXIT("Erreur création du tube stderr du fils\n");
+
+	   pid = fork();
+	   if(pid == -1) ERROR_EXIT("fork");
+	
+	   if (pid == 0) { /* fils */	
+	   
+	      /* redirection stdout */	      
+	      close(stdout_tube[0]);
+         dup2(stdout_tube[1],STDOUT_FILENO);
+	      /* redirection stderr */	      	      
+	      close(stderr_tube[0]);
+         dup2(stderr_tube[1],STDERR_FILENO);
+	      /* Creation du tableau d'arguments pour le ssh */ 
+         char ** newargv = malloc((argc+4)*sizeof(char *));
+         newargv[0]="ssh";
+         newargv[1]=nom_machine[i];
+         /* jump to new prog : */
+	      execvp("ssh",newargv); 
+
+	   } else  if(pid > 0) { /* pere */		      
+	      /* fermeture des extremites des tubes non utiles */
+	      num_procs_creat++;	      
+	   }
      }
      
    

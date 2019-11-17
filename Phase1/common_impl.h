@@ -46,3 +46,5 @@ void do_bind(int fd, struct sockaddr_in saddr);
 void do_listen(int fd);
 int do_accept(int fd, struct sockaddr_in *caddr);
 void do_connect(int fd, struct sockaddr_in sock_host, int size_host);
+char ** lecture_machine(char * name);
+int nb_process(char * name);
